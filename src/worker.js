@@ -1,34 +1,39 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
 import jwt from '@tsndr/cloudflare-worker-jwt';
 
 export default {
 	async fetch(request, env, ctx) {
-		var txt = 'Hello World!' + "\n";
-		// console.log(request.headers);
-		// console.log("Kok sepi?");
 
-		// let userEmail = request.headers.get("Cf-Access-Authenticated-User-Email") || '_development';
-    // txt += userEmail + "\n";
-
-		let userJwt = request.headers.get("Cf-Access-Jwt-Assertion") || '_production';
-    // txt += userJwt + "\n";;
+		let userJwt = request.headers.get("Cf-Access-Jwt-Assertion");
 
 		const { payload } = jwt.decode(userJwt);
-		txt += "Email: " + payload.email + "\n";
-		txt += "Timestamp: " + payload.iat + "\n";
-		txt += "Country: " + payload.country + "\n";
+		const dateTimestamp  = (new Date(payload.iat * 1000)).toISOString();
+		const url = "https://restcountries.com/v3.1/alpha/" + payload.country;
 
-		// console.log(payload.aud);
+    const response = await fetch(url, {
+			headers: {
+        "content-type": "application/json;charset=UTF-8",
+      },
+		});
+		const namanya = await response.json();
+		const countryName = namanya[0].name.common;
+		const strCountry = "<a href=\"/secure/" + payload.country + "\" class=\"text-blue-400 hover:underline\">"+ countryName +"</a>";
 
-		return new Response(txt);
+		var html = "<!DOCTYPE html>";
+		html += "<head>";
+		html += "<script src=\"https://cdn.tailwindcss.com\"></script>";
+		html += "</head>";
+		html += "<body>";
+		html += "<div class=\"h-screen flex items-center justify-center text-3xl text-gray-500\">";
+		html += `<p><span class=\"font-bold\">${payload.email}</span> authenticated at <span class=\"font-bold\">${dateTimestamp}</span> from <span class=\"font-bold\">${strCountry}</span>`;
+		html += "<br /><br />Go back <a href=\"/\" class=\"text-blue-400 hover:underline\">home</a>";
+		html += "</p></div>";
+		html += "</body>";
+
+		return new Response(html, {
+      headers: {
+        "content-type": "text/html;charset=UTF-8"
+			}
+		})
 	},
 };
 
